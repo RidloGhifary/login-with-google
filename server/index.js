@@ -15,32 +15,25 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // API for Google Authentication
 app.post("/google-auth", async (req, res) => {
-  const { credential, client_id } = req.body;
-  try {
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: client_id,
-    });
-    const payload = ticket.getPayload();
-    const userid = payload["sub"];
+  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Referrer-Policy", "no-referrer-when-downgrade");
+  const redirectURL = "http://localhost:5173";
 
-    // Check if the user exists in your database
-    let user = await User.findOne({ email });
-    if (!user) {
-      // Create a user if they do not exist
-      user = await User.create({
-        email,
-        name: `${given_name} ${family_name}`,
-        authSource: "google",
-      });
-    }
+  const oAuth2Client = new OAuth2Client(
+    process.env.CLIENT_ID,
+    process.env.CLIENT_SECRET,
+    redirectURL
+  );
 
-    // Generate a JWT token
-    const token = jwt.sign({ user }, JWT_SECRET);
-    res.status(200).cookie("token", token, { http: true }).json({ payload });
-  } catch (err) {
-    res.status(400).json({ err });
-  }
+  // Generate the url that will be used for the consent dialog.
+  const authorizeUrl = oAuth2Client.generateAuthUrl({
+    access_type: "offline",
+    scope: "https://www.googleapis.com/auth/userinfo.profile  openid ",
+    prompt: "consent",
+  });
+
+  res.json({ url: authorizeUrl });
 });
 
 const start = async () => {
